@@ -54,6 +54,9 @@ defmodule Oaskit.TestWeb.Router do
       # Manual tests
       post "/manual-form-handle", BodyController, :manual_form_handle
       get "/manual-form-show", BodyController, :manual_form_show
+
+      # Multipart arrays test
+      post "/multipart-arrays", BodyController, :multipart_arrays
     end
 
     get "/no-params", Oaskit.TestWeb.ParamController, :no_params

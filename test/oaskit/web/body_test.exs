@@ -273,6 +273,39 @@ defmodule Oaskit.Web.BodyTest do
     end
   end
 
+  describe "multipart form-data with array fields" do
+    @describetag req_content_type: "multipart/form-data"
+
+    test "arrays submitted as field[] should be validated correctly", %{conn: conn} do
+      # Phoenix converts multipart form arrays like "texts[]" to "texts" (without brackets).
+      # When a browser submits:
+      #   <input type="file" name="texts[]" multiple>
+      #   <input type="file" name="images[]" multiple>
+      #
+      # Phoenix parses this into conn.body_params as:
+      #   %{"texts" => [...], "images" => [...]}
+      #
+      # The validation plug should recognize that "texts" corresponds to "texts[]" in the schema.
+      payload = %{
+        "texts" => ["content1", "content2"]
+      }
+
+      conn =
+        post_reply(conn, ~p"/generated/body/multipart-arrays", payload, fn
+          conn, _params ->
+            import Oaskit.Controller
+
+            %{texts: texts} = body_params(conn)
+
+            assert is_list(texts)
+
+            json(conn, %{data: "ok"})
+        end)
+
+      assert %{"data" => "ok"} = valid_response(PathsApiSpec, conn, 200)
+    end
+  end
+
   describe "html error rendering" do
     @describetag req_accept: "text/html"
 

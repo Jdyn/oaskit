@@ -16,6 +16,15 @@ defmodule Oaskit.TestWeb.BodyController do
     required: [:name, :sunlight]
   }
 
+  @multipart_array_schema %{
+    type: :object,
+    title: "MultipartArraySchema",
+    properties: %{
+      "texts[]": %{type: :array, items: %{type: :string, format: :binary}},
+    },
+    required: [:"texts[]",]
+  }
+
   # pass the schema directly as the value of request_body
   operation :inline_single,
     request_body: {@plant_schema, []},
@@ -103,6 +112,14 @@ defmodule Oaskit.TestWeb.BodyController do
     responses: dummy_responses_with_error()
 
   def boolean_schema_false(conn, params) do
+    Responder.reply(conn, params)
+  end
+
+  operation :multipart_arrays,
+    request_body: [content: %{"multipart/form-data" => %{schema: @multipart_array_schema}}],
+    responses: dummy_responses_with_error()
+
+  def multipart_arrays(conn, params) do
     Responder.reply(conn, params)
   end
 end
