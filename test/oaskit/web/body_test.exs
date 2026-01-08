@@ -280,12 +280,12 @@ defmodule Oaskit.Web.BodyTest do
       # Phoenix converts multipart form arrays like "texts[]" to "texts" (without brackets).
       # When a browser submits:
       #   <input type="file" name="texts[]" multiple>
-      #   <input type="file" name="images[]" multiple>
       #
       # Phoenix parses this into conn.body_params as:
-      #   %{"texts" => [...], "images" => [...]}
+      #   %{"texts" => [...]}
       #
-      # The validation plug should recognize that "texts" corresponds to "texts[]" in the schema.
+      # The validation plug normalizes "texts" back to "texts[]" to match the schema,
+      # then JSV casts it to an atom key :"texts[]".
       payload = %{
         "texts" => ["content1", "content2"]
       }
@@ -295,9 +295,71 @@ defmodule Oaskit.Web.BodyTest do
           conn, _params ->
             import Oaskit.Controller
 
-            %{texts: texts} = body_params(conn)
+            body = body_params(conn)
+            texts = Map.get(body, "texts[]")
 
             assert is_list(texts)
+            assert texts == ["content1", "content2"]
+
+            json(conn, %{data: "ok"})
+        end)
+
+      assert %{"data" => "ok"} = valid_response(PathsApiSpec, conn, 200)
+    end
+
+    test "missing required bracket-array fields should fail validation", %{conn: conn} do
+      # Empty payload - missing required "texts[]" field
+      payload = %{}
+
+      conn = post(conn, ~p"/generated/body/multipart-arrays", payload)
+
+      assert %{
+               "error" => %{
+                 "message" => "Unprocessable Content",
+                 "in" => "body",
+                 "validation_error" => %{"valid" => false}
+               }
+             } = valid_response(PathsApiSpec, conn, 422)
+    end
+
+    test "empty array is accepted for required bracket-array fields", %{conn: conn} do
+      # Empty array should pass validation (required means the key must exist, not that it must have items)
+      payload = %{"texts" => []}
+
+      conn =
+        post_reply(conn, ~p"/generated/body/multipart-arrays", payload, fn
+          conn, _params ->
+            import Oaskit.Controller
+
+            body = body_params(conn)
+            texts = Map.get(body, "texts[]")
+
+            assert texts == []
+
+            json(conn, %{data: "ok"})
+        end)
+
+      assert %{"data" => "ok"} = valid_response(PathsApiSpec, conn, 200)
+    end
+  end
+
+  describe "url-encoded form with array fields" do
+    @describetag req_content_type: "application/x-www-form-urlencoded"
+
+    test "arrays submitted as field[] should be validated correctly", %{conn: conn} do
+      # Same bracket normalization should work for URL-encoded forms
+      form_data = URI.encode_query([{"texts[]", "content1"}, {"texts[]", "content2"}])
+
+      conn =
+        post_reply(conn, ~p"/generated/body/multipart-arrays", form_data, fn
+          conn, _params ->
+            import Oaskit.Controller
+
+            body = body_params(conn)
+            texts = Map.get(body, "texts[]")
+
+            assert is_list(texts)
+            assert texts == ["content1", "content2"]
 
             json(conn, %{data: "ok"})
         end)

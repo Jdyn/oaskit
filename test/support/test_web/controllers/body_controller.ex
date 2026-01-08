@@ -116,7 +116,13 @@ defmodule Oaskit.TestWeb.BodyController do
   end
 
   operation :multipart_arrays,
-    request_body: [content: %{"multipart/form-data" => %{schema: @multipart_array_schema}}],
+    request_body: [
+      required: true,
+      content: %{
+        "multipart/form-data" => %{schema: @multipart_array_schema},
+        "application/x-www-form-urlencoded" => %{schema: @multipart_array_schema}
+      }
+    ],
     responses: dummy_responses_with_error()
 
   def multipart_arrays(conn, params) do

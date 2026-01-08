@@ -4,6 +4,7 @@ defmodule Oaskit.Validation.RequestValidator do
   alias Oaskit.Errors.MissingParameterError
   alias Oaskit.Errors.UnsupportedMediaTypeError
   alias Oaskit.Plugs.ValidateRequest
+  alias Oaskit.Validation.BodyNormalizer
   alias Oaskit.Validation.RequestData
   alias Plug.Conn
 
@@ -179,17 +180,19 @@ defmodule Oaskit.Validation.RequestValidator do
   end
 
   defp validate_body(req_data, body, _required?, media_matchers, jsv_root) do
-    {primary, secondary} = fetch_content_type(req_data)
+    content_type = fetch_content_type(req_data)
 
-    with {:ok, {_, jsv_key}} <- match_media_type(media_matchers, {primary, secondary}),
+    with {:ok, {_, jsv_key}} <- match_media_type(media_matchers, content_type),
          :ok <- ensure_fetched_body!(body),
-         {:ok, cast_body} <- validate_with_schema(body, jsv_key, jsv_root) do
+         normalized_body = BodyNormalizer.normalize(body, content_type, jsv_key, jsv_root),
+         {:ok, cast_body} <- validate_with_schema(normalized_body, jsv_key, jsv_root) do
       {:ok, %{body_params: cast_body}}
     else
       {:error, %JSV.ValidationError{} = validation_error} ->
         {:error, %InvalidBodyError{validation_error: validation_error, value: body}}
 
       {:error, :media_type_match} ->
+        {primary, secondary} = content_type
         {:error, %UnsupportedMediaTypeError{media_type: "#{primary}/#{secondary}", value: body}}
     end
   end
