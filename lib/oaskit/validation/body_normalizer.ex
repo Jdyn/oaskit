@@ -87,15 +87,22 @@ defmodule Oaskit.Validation.BodyNormalizer do
     bracket_mapping = build_bracket_mapping(props_map)
 
     Enum.reduce(body_params, %{}, fn {key, value}, acc ->
+      str_key = to_string(key)
+
       {final_key, nested_subschema} =
         cond do
           # Prioritize exact match - if the key exists in schema, use it as-is
+          # Check both string and atom versions since schema may use atoms
           Map.has_key?(props_map, key) ->
             {key, Map.get(props_map, key)}
 
+          is_binary(key) and Map.has_key?(props_map, String.to_atom(key)) ->
+            {key, Map.get(props_map, String.to_atom(key))}
+
           # Otherwise, check if there's a bracket mapping
-          Map.has_key?(bracket_mapping, key) ->
-            bracket_key = Map.fetch!(bracket_mapping, key)
+          # bracket_mapping uses string keys
+          Map.has_key?(bracket_mapping, str_key) ->
+            bracket_key = Map.fetch!(bracket_mapping, str_key)
             {bracket_key, Map.get(props_map, bracket_key)}
 
           # No match, keep key as-is

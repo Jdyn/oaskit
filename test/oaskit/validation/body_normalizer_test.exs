@@ -173,5 +173,35 @@ defmodule Oaskit.Validation.BodyNormalizerTest do
       # Should NOT be transformed since "texts" exists in schema
       assert result == %{"texts" => "single value"}
     end
+
+    test "handles string keys matching atom keys in props_map" do
+      # Schema uses atom keys, body_params uses string keys
+      props_map = %{
+        :"texts[]" => %JSV.Subschema{validators: [], schema_path: [], cast: nil}
+      }
+
+      # Body params has string key with brackets (multipart preserves brackets)
+      body_params = %{"texts[]" => ["a", "b"]}
+
+      result = BodyNormalizer.normalize_bracket_arrays(body_params, props_map)
+
+      # Should match the atom key in schema
+      assert result == %{"texts[]" => ["a", "b"]}
+    end
+
+    test "handles string keys without brackets matching atom bracket keys" do
+      # Schema uses atom keys, body_params uses string keys without brackets
+      props_map = %{
+        :"texts[]" => %JSV.Subschema{validators: [], schema_path: [], cast: nil}
+      }
+
+      # Body params has string key without brackets (query parsing stripped them)
+      body_params = %{"texts" => ["a", "b"]}
+
+      result = BodyNormalizer.normalize_bracket_arrays(body_params, props_map)
+
+      # Should map to the atom bracket key
+      assert result == %{:"texts[]" => ["a", "b"]}
+    end
   end
 end
