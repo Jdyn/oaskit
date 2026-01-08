@@ -61,7 +61,10 @@ defmodule Oaskit.Validation.BodyNormalizer do
       when is_map(body_params) and content_type in @form_content_types do
     case fetch_subschema(jsv_key, jsv_root) do
       {:ok, subschema} ->
-        normalize_with_subschema(body_params, subschema)
+        result = normalize_with_subschema(body_params, subschema)
+        IO.inspect(body_params, label: "BodyNormalizer input")
+        IO.inspect(result, label: "BodyNormalizer output")
+        result
 
       :error ->
         body_params
